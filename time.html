@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全螢幕時間日期與旗幟飄動文字</title>
+    <style>
+        /* 全局設置 box-sizing，確保 padding 和 border 包含在元素寬高內 */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* 定義 CSS 變數的根元素，用於背景和文字漸變的顏色 */
+        :root {
+            /* 背景層 1 的顏色變數 */
+            --bg1-color-1: hsl(0, 100%, 50%); --bg1-color-2: hsl(60, 100%, 50%); --bg1-color-3: hsl(120, 100%, 50%);
+            --bg1-color-4: hsl(180, 100%, 50%); --bg1-color-5: hsl(240, 100%, 50%); --bg1-color-6: hsl(300, 100%, 50%);
+
+            /* 背景層 2 的顏色變數 (初始值，將被隨機替換) */
+            --bg2-color-1: hsl(30, 100%, 50%); --bg2-color-2: hsl(90, 100%, 50%); --bg2-color-3: hsl(150, 100%, 50%);
+            --bg2-color-4: hsl(210, 100%, 50%); --bg2-color-5: hsl(270, 100%, 50%); --bg2-color-6: hsl(330, 100%, 50%);
+
+            /* 文字顏色變數 */
+            --text-color-1: hsl(0, 100%, 70%);
+            --text-color-2: hsl(90, 100%, 70%);
+            --text-color-3: hsl(180, 100%, 70%);
+            --text-color-4: hsl(270, 100%, 70%);
+        }
+
+        /* 重置瀏覽器預設樣式，確保內容佔滿整個視窗 */
+        body {
+            margin: 0;
+            overflow: hidden; /* 防止滾動條出現 */
+            display: flex; /* 使用 Flexbox 進行內容置中 */
+            flex-direction: column; /* 垂直排列時間、西曆日期 */
+            justify-content: center; /* 垂直置中 */
+            align-items: center; /* 水平置中 */
+            min-height: 100vh; /* 確保內容佔滿視窗的完整高度 */
+            width: 100vw; /* 確保內容佔滿視窗的完整寬度 */
+            position: relative; /* 設置為相對定位，以便絕對定位的背景層能正確疊加 */
+            z-index: 0; /* 確保內容層在背景層之上 */
+            background: none; /* body 本身不再直接設定背景，由子層處理 */
+            
+            /* 新增：為了旗幟飄動的 3D 效果，為 body 元素添加透視 */
+            perspective: 1000px;
+            transform-style: preserve-3d; /* 確保子元素在 3D 空間中呈現 */
+        }
+
+        /* 兩個背景層的通用樣式 */
+        .gradient-bg-layer {
+            position: absolute; /* 絕對定位，覆蓋整個 body */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: 400% 400%; /* 設置更大的背景尺寸以實現動畫效果 */
+            animation: gradientBackground 15s ease infinite; /* 背景漸變動畫 */
+            transition: opacity 2s ease-in-out; /* 透明度變化時平滑過渡 */
+        }
+
+        /* 背景層 1 的樣式 */
+        #background-layer-1 {
+            z-index: -2; /* 放在最底層 */
+            opacity: 1; /* 初始可見 */
+            background-image: linear-gradient(to right, var(--bg1-color-1), var(--bg1-color-2), var(--bg1-color-3), var(--bg1-color-4), var(--bg1-color-5), var(--bg1-color-6));
+        }
+
+        /* 背景層 2 的樣式 */
+        #background-layer-2 {
+            z-index: -1; /* 放在背景層 1 之上，內容層之下 */
+            opacity: 0; /* 初始隱藏 */
+            background-image: linear-gradient(to right, var(--bg2-color-1), var(--bg2-color-2), var(--bg2-color-3), var(--bg2-color-4), var(--bg2-color-5), var(--bg2-color-6));
+        }
+
+        /* 定義背景漸變動畫的關鍵影格 */
+        @keyframes gradientBackground {
+            0% { background-position: 0% 50%; }    /* 起始位置 */
+            50% { background-position: 100% 50%; } /* 中間位置 */
+            100% { background-position: 0% 50%; } /* 結束位置，回到起始點 */
+        }
+
+        /* 時間、西曆日期顯示容器的樣式 */
+        #dateTimeDisplay {
+            font-family: 'Segoe UI', Arial, sans-serif; /* 使用 Windows 系統常見字體 */
+            font-weight: bold; /* 字體加粗 */
+            text-align: center; /* 文字置中 */
+            padding: 20px; /* 增加一些內邊距，避免文字太靠近邊緣 */
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); /* 增加文字陰影，使其更突出 */
+
+            /* 字體漸變效果 (應用於所有子元素) - 使用 CSS 變數 */
+            color: transparent; /* 將字體顏色設置為透明 */
+            background-image: linear-gradient(to right, var(--text-color-1), var(--text-color-2), var(--text-color-3), var(--text-color-4));
+            -webkit-background-clip: text; /* 關鍵：將背景應用到文字形狀上 (WebKit 瀏覽器) */
+            background-clip: text; /* 關鍵：將背景應用到文字形狀上 (標準瀏覽器) */
+            background-size: 200% auto; /* 設置更大的背景尺寸以實現動畫 */
+            
+            /* 修改：結合字體漸變動畫與旗幟飄動動畫 */
+            animation: gradientText 5s ease infinite alternate, flagWave 10s ease-in-out infinite alternate;
+            transition: background-image 1s ease-out; /* 文字漸變的顏色變化仍會是跳變，但保留以防未來瀏覽器支援 */
+        }
+
+        /* 定義字體漸變動畫的關鍵影格 */
+        @keyframes gradientText {
+            0% { background-position: 0% 50%; }    /* 起始位置 */
+            100% { background-position: 100% 50%; } /* 結束位置 */
+        }
+
+        /* 修改：定義旗幟飄動動畫的關鍵影格，加入整體向上偏移的 translateY */
+        @keyframes flagWave {
+            0% {
+                transform: translateX(-2vw) rotateY(0deg) rotateX(0deg) translateY(-20vh); /* 初始位置：稍微向左，沒有旋轉，整體向上移動 */
+            }
+            25% {
+                transform: translateX(2vw) rotateY(10deg) rotateX(5deg) translateY(-20.5vh); /* 向右移動，並向內（Y軸）旋轉，輕微上下浮動 */
+            }
+            50% {
+                transform: translateX(-3vw) rotateY(-10deg) rotateX(-5deg) translateY(-19.5vh); /* 向左移動，並向外（Y軸）旋轉，輕微上下浮動 */
+            }
+            75% {
+                transform: translateX(1vw) rotateY(5deg) rotateX(2deg) translateY(-20.2vh); /* 輕微向右移動，輕微旋轉，輕微上下浮動 */
+            }
+            100% {
+                transform: translateX(-2vw) rotateY(0deg) rotateX(0deg) translateY(-20vh); /* 返回初始位置，沒有旋轉，整體向上移動 */
+            }
+        }
+
+
+        /* 針對時間文字的樣式 */
+        .time-text {
+            font-size: 25vw; /* 時間字體大小 */
+            margin-bottom: -6vw; /* 時間與西曆日期之間的間距 */
+        }
+
+        /* 針對西曆日期文字的樣式 */
+        .gregorian-date-text {
+            font-size: 9vw; /* 西曆日期字體大小 */
+            margin-bottom: -2vw; /* 時間與西曆日期之間的間距 */
+        }
+
+        /* 針對農曆日期文字的樣式 */
+        .lunar-date-text {
+            font-size: 9vw; /* 農曆日期字體大小 */
+            margin-bottom: -2vw; /* 時間與西曆日期之間的間距 */
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.7.0/lunar.min.js"></script>
+</head>
+<body>
+    <div id="background-layer-1" class="gradient-bg-layer"></div>
+    <div id="background-layer-2" class="gradient-bg-layer"></div>
+
+    <div id="dateTimeDisplay"></div>
+
+    <script>
+        // JavaScript 函數：更新時間、西曆日期和農曆日期
+        function updateDateTime() {
+            const now = new Date(); // 獲取當前日期和時間
+
+            // --- 西曆時間和日期 ---
+            // 時間格式選項：2位數小時、分鐘、秒，24小時制
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            // 日期格式選項：年份、月份、日期、星期幾 (中文繁體)
+            const gregorianDateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+
+            const timeString = now.toLocaleTimeString('zh-Hant', timeOptions);
+            const gregorianDateString = now.toLocaleDateString('zh-Hant', gregorianDateOptions);
+
+            // --- 農曆日期 (包含台灣年) ---
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1; // getMonth() returns 0-11
+            const day = now.getDate();
+            const hour = now.getHours(); // 獲取當前小時 (0-23)
+
+            // 計算台灣年 (民國年)
+            const minguoYear = year - 1911;
+
+            // 使用 lunar-javascript 轉換公曆到農曆
+            const solar = Solar.fromYmd(year, month, day);
+            const lunar = solar.getLunar();
+
+            // 函數：根據小時判斷時辰
+            function getShiChen(h) {
+                if (h >= 23 || h < 1) return '子';
+                if (h >= 1 && h < 3) return '丑';
+                if (h >= 3 && h < 5) return '寅';
+                if (h >= 5 && h < 7) return '卯';
+                if (h >= 7 && h < 9) return '辰';
+                if (h >= 9 && h < 11) return '巳';
+                if (h >= 11 && h < 13) return '午';
+                if (h >= 13 && h < 15) return '未';
+                if (h >= 15 && h < 17) return '申';
+                if (h >= 17 && h < 19) return '酉';
+                if (h >= 19 && h < 21) return '戌';
+                if (h >= 21 && h < 23) return '亥';
+                return ''; // 正常情況下不會發生
+            }
+
+            const shiChen = getShiChen(hour); // 取得當前時辰
+
+            // 格式化農曆日期字串，將年份替換為台灣年，並加入時辰
+            // 例如: 民國114年 四月 初一 (鼠) 子時
+            const lunarDateString = `${minguoYear}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()} ${lunar.getYearShengXiao()} ${shiChen}時`;
+
+            // 將格式化後的字串更新到 HTML 元素中，並為各部分添加類別
+            document.getElementById('dateTimeDisplay').innerHTML = `
+                <div class="time-text">${timeString}</div>
+                <div class="gregorian-date-text">${gregorianDateString}</div>
+                <div class="lunar-date-text">${lunarDateString}</div>
+            `;
+        }
+
+        // 函數：生成一個隨機且鮮豔的 HSL 顏色
+        function getRandomVibrantColor() {
+            const h = Math.floor(Math.random() * 360); // 色相 (Hue): 0-359 度
+            const s = Math.floor(Math.random() * (100 - 70 + 1)) + 70; // 飽和度 (Saturation): 70-100% (確保鮮豔)
+            const l = Math.floor(Math.random() * (70 - 40 + 1)) + 40; // 亮度 (Lightness): 40-70% (避免過亮或過暗)
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        // 函數：生成指定數量隨機鮮豔顏色的調色板
+        function generateRandomPalette(numColors) {
+            const palette = [];
+            for (let i = 0; i < numColors; i++) {
+                palette.push(getRandomVibrantColor());
+            }
+            return palette;
+        }
+
+        // 追蹤當前活躍的背景層 (1 或 2)
+        let currentBgLayerIndex = 1;
+        const bgLayer1 = document.getElementById('background-layer-1');
+        const bgLayer2 = document.getElementById('background-layer-2');
+        const rootStyle = document.documentElement.style; // 用於設定 CSS 變數
+
+        // 函數：隨機選擇並應用漸變顏色
+        function applyRandomGradients() {
+            // 生成新的隨機背景調色板 (6 個顏色)
+            const newBgPalette = generateRandomPalette(6);
+            // 生成新的隨機文字調色板 (4 個顏色)
+            const newTextPalette = generateRandomPalette(4);
+
+            // --- 處理文字漸變顏色 (仍為跳變，但會隨機更新) ---
+            // 直接設定 CSS 變數，文字漸變本身無法平滑過渡不同顏色組合
+            rootStyle.setProperty('--text-color-1', newTextPalette[0]);
+            rootStyle.setProperty('--text-color-2', newTextPalette[1]);
+            rootStyle.setProperty('--text-color-3', newTextPalette[2]);
+            rootStyle.setProperty('--text-color-4', newTextPalette[3]);
+
+            // --- 處理背景漸變顏色 (交叉淡入淡出) ---
+            // 判斷哪個背景層是當前活躍的，哪個是準備下一次顯示的
+            const activeLayer = (currentBgLayerIndex === 1) ? bgLayer1 : bgLayer2;
+            const inactiveLayer = (currentBgLayerIndex === 1) ? bgLayer2 : bgLayer1;
+
+            // 將新的顏色設定到「非活躍」層的 CSS 變數上 (該層目前是隱藏的)
+            const inactiveLayerPrefix = (currentBgLayerIndex === 1) ? '--bg2-color-' : '--bg1-color-';
+            for (let i = 0; i < newBgPalette.length; i++) {
+                rootStyle.setProperty(`${inactiveLayerPrefix}${i + 1}`, newBgPalette[i]);
+            }
+
+            // 確保新背景在非活躍層上渲染完成，然後才開始淡入淡出
+            // 透過強制瀏覽器重繪 (reflow) 來確保樣式更新
+            inactiveLayer.offsetHeight; // 讀取這個屬性會強制瀏覽器計算佈局
+
+            // 開始交叉淡入淡出：將「非活躍」層淡入，將「活躍」層淡出
+            inactiveLayer.style.opacity = 1;
+            activeLayer.style.opacity = 0;
+
+            // 更新當前活躍層的索引，為下一次顏色切換做準備
+            currentBgLayerIndex = (currentBgLayerIndex === 1) ? 2 : 1;
+        }
+
+        // 每秒調用一次 updateDateTime 函數，實現實時更新
+        setInterval(updateDateTime, 1000);
+        // 頁面載入後立即調用一次，確保初次顯示
+        updateDateTime();
+        // 頁面載入後立即隨機應用一次漸變顏色
+        applyRandomGradients();
+
+        // 設置每隔一段時間更換一次顏色組合 (例如每 30 秒)
+        // 您可以調整這個時間間隔來控制顏色變化的頻率
+        setInterval(applyRandomGradients, 30000); // 每 30 秒更換一次顏色組合
+    </script>
+</body>
+</html>
